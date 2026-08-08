@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consulta de IPs</title>
+    <title>Consulta y Contabilidad de IPs</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,7 +11,7 @@
             color: #333;
             margin: 20px;
         }
-        h1 {
+        h1, h2 {
             text-align: center;
         }
         table {
@@ -55,6 +55,10 @@
             background-color: #ccc;
             cursor: not-allowed;
         }
+        /* Color distinto para la tabla de resumen */
+        #tablaResumen th {
+            background-color: #ff8800; 
+        }
     </style>
 </head>
 <body>
@@ -64,6 +68,7 @@
     <button id="btnConsultar" onclick="iniciarConsulta()">Iniciar Consulta</button>
     <div id="estado" class="status">Esperando para iniciar...</div>
 
+    <!-- Tabla Principal -->
     <table id="tablaIps">
         <thead>
             <tr>
@@ -75,6 +80,22 @@
         </thead>
         <tbody>
             <!-- Los resultados aparecerán aquí -->
+        </tbody>
+    </table>
+
+    <hr style="max-width: 800px; margin: 40px auto; border: 1px solid #ddd;">
+
+    <!-- Tabla de Contabilidad (Resumen) -->
+    <h2>Contabilidad por Empresa (ISP)</h2>
+    <table id="tablaResumen">
+        <thead>
+            <tr>
+                <th>ISP / Empresa</th>
+                <th>Cantidad de IPs</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- El resumen de cantidades aparecerá aquí -->
         </tbody>
     </table>
 
@@ -91,12 +112,17 @@
         ];
 
         async function iniciarConsulta() {
-            const tbody = document.querySelector("#tablaIps tbody");
+            const tbodyPrincipal = document.querySelector("#tablaIps tbody");
+            const tbodyResumen = document.querySelector("#tablaResumen tbody");
             const estado = document.getElementById("estado");
             const btn = document.getElementById("btnConsultar");
             
-            tbody.innerHTML = ""; // Limpiar tabla
+            tbodyPrincipal.innerHTML = ""; // Limpiar tabla principal
+            tbodyResumen.innerHTML = "";   // Limpiar tabla de resumen
             btn.disabled = true; // Desactivar botón
+
+            // Objeto para llevar la contabilidad
+            let contabilidadISP = {};
             
             for (let i = 0; i < ips.length; i++) {
                 const ip = ips[i];
@@ -108,7 +134,7 @@
                 let tdAsn = `<td>Cargando...</td>`;
                 
                 tr.innerHTML = tdNo + tdIp + tdIsp + tdAsn;
-                tbody.appendChild(tr);
+                tbodyPrincipal.appendChild(tr);
 
                 estado.innerText = `Consultando IP ${i + 1} de ${ips.length}...`;
 
@@ -125,11 +151,19 @@
                         if (orgFull.startsWith("AS")) {
                             let partes = orgFull.split(" ");
                             asn = partes[0];
-                            isp = partes.slice(1).join(" ");
+                            isp = partes.slice(1).join(" "); // Todo lo que sigue al ASN es el nombre
                         }
                         
                         tr.cells[2].innerText = isp;
                         tr.cells[3].innerText = asn;
+
+                        // === AQUÍ LLEVAMOS LA CONTABILIDAD ===
+                        // Si el ISP ya existe en el contador, sumamos 1, si no, lo creamos con valor 1
+                        if (contabilidadISP[isp]) {
+                            contabilidadISP[isp]++;
+                        } else {
+                            contabilidadISP[isp] = 1;
+                        }
 
                     } catch (error) {
                         tr.cells[2].innerText = "Error en consulta";
@@ -140,12 +174,33 @@
                     tr.cells[3].innerText = "-";
                 }
                 
-                // Pequeña pausa para no saturar la API
+                // Pequeña pausa de 300 milisegundos para no saturar la API
                 await new Promise(resolve => setTimeout(resolve, 300));
             }
             
-            estado.innerText = "¡Consulta finalizada!";
-            btn.disabled = false;
+            // === AL TERMINAR, DIBUJAMOS LA TABLA DE RESUMEN ===
+            estado.innerText = "¡Consulta y Contabilidad finalizadas!";
+            
+            // Convertimos el objeto en un arreglo para poder ordenarlo de mayor a menor
+            let arregloResultados = [];
+            for (let empresa in contabilidadISP) {
+                arregloResultados.push({
+                    nombre: empresa,
+                    cantidad: contabilidadISP[empresa]
+                });
+            }
+
+            // Ordenamos de mayor a menor cantidad
+            arregloResultados.sort((a, b) => b.cantidad - a.cantidad);
+
+            // Creamos las filas en la tabla de resumen
+            for (let item of arregloResultados) {
+                const filaResumen = document.createElement("tr");
+                filaResumen.innerHTML = `<td><strong>${item.nombre}</strong></td><td>${item.cantidad}</td>`;
+                tbodyResumen.appendChild(filaResumen);
+            }
+
+            btn.disabled = false; // Reactivar el botón por si quieres consultar de nuevo
         }
     </script>
 </body>
