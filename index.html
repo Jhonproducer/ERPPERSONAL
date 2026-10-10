@@ -50,7 +50,13 @@
   <div class="panel">
     <div class="row">
       <div>
-        <label for="key">API key (se guarda solo en este navegador)</label>
+        <label for="worker">URL del Worker (recomendado, evita el error CORS)</label>
+        <input id="worker" type="text" placeholder="https://ip-check.TU-USUARIO.workers.dev" autocomplete="off">
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label for="key">API key (solo si NO usas Worker; se guarda solo en este navegador)</label>
         <input id="key" type="password" placeholder="Pega tu API key de IPQualityScore" autocomplete="off">
       </div>
       <div style="flex:0 0 auto;min-width:0">
@@ -95,6 +101,8 @@ let rows = [], sortKey = null, sortDir = 1;
 // ---- clave en localStorage (opcional, si el navegador lo bloquea no pasa nada)
 try { $("key").value = localStorage.getItem("ipc_key") || ""; } catch(e){}
 $("key").addEventListener("change", () => { try { localStorage.setItem("ipc_key", $("key").value.trim()); } catch(e){} });
+try { $("worker").value = localStorage.getItem("ipc_worker") || ""; } catch(e){}
+$("worker").addEventListener("change", () => { try { localStorage.setItem("ipc_worker", $("worker").value.trim()); } catch(e){} });
 $("showkey").onclick = () => {
   const k = $("key"); const show = k.type === "password";
   k.type = show ? "text" : "password"; $("showkey").textContent = show ? "Ocultar" : "Ver";
@@ -111,7 +119,10 @@ function parseIPs(t){
 function setMsg(t, err){ $("msg").textContent = t; $("msg").className = err ? "err" : ""; }
 
 async function lookup(ip, key){
-  const url = `https://ipqualityscore.com/api/json/ip/${encodeURIComponent(key)}/${encodeURIComponent(ip)}?strictness=1&allow_public_access_points=true`;
+  const w = $("worker").value.trim().replace(/\/+$/, "");
+  const url = w
+    ? `${w}/?ip=${encodeURIComponent(ip)}`
+    : `https://ipqualityscore.com/api/json/ip/${encodeURIComponent(key)}/${encodeURIComponent(ip)}?strictness=1&allow_public_access_points=true`;
   try{
     const r = await fetch(url);
     const d = await r.json();
@@ -125,9 +136,9 @@ async function lookup(ip, key){
 $("go").onclick = async () => {
   const key = $("key").value.trim();
   const ips = parseIPs($("ips").value);
-  if(!key){ setMsg("Falta la API key.", true); return; }
+  if(!key && !$("worker").value.trim()){ setMsg("Falta la URL del Worker o la API key.", true); return; }
   if(!ips.length){ setMsg("No encontré IPs válidas.", true); return; }
-  try { localStorage.setItem("ipc_key", key); } catch(e){}
+  try { localStorage.setItem("ipc_key", key); localStorage.setItem("ipc_worker", $("worker").value.trim()); } catch(e){}
 
   rows = []; render();
   $("go").disabled = true; $("csv").disabled = true;
@@ -217,7 +228,7 @@ $("csv").onclick = () => {
   const head = COLS.map(c=>c[0]).concat(["success","message"]);
   const q = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
   const lines = [head.join(",")].concat(rows.map(r => head.map(k=>q(r[k])).join(",")));
-  const blob = new Blob(["﻿" + lines.join("\n")], {type:"text/csv;charset=utf-8"});
+  const blob = new Blob(["\ufeff" + lines.join("\n")], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = "ip_check.csv"; a.click();
   URL.revokeObjectURL(a.href);
