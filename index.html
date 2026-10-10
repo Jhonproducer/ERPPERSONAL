@@ -1,207 +1,229 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consulta y Contabilidad de IPs</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 20px;
-        }
-        h1, h2 {
-            text-align: center;
-        }
-        table {
-            width: 100%;
-            max-width: 800px;
-            margin: 20px auto;
-            border-collapse: collapse;
-            background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        th, td {
-            padding: 12px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-        th {
-            background-color: #007bff;
-            color: white;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .status {
-            text-align: center;
-            margin-bottom: 20px;
-            font-weight: bold;
-            color: #555;
-        }
-        button {
-            display: block;
-            margin: 0 auto 20px auto;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-        /* Color distinto para la tabla de resumen */
-        #tablaResumen th {
-            background-color: #ff8800; 
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IP Check</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#121923; --line:#1f2a38; --txt:#e6edf3; --mut:#8b9bb0;
+    --ok:#2ea043; --warn:#d29922; --bad:#f85149; --acc:#3b82f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 12px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  label{display:block;color:var(--mut);font-size:12px;margin-bottom:4px}
+  input,textarea{width:100%;background:#0d131b;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:9px;font:13px ui-monospace,Menlo,Consolas,monospace}
+  textarea{min-height:150px;resize:vertical}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .row>div{flex:1;min-width:220px}
+  button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer}
+  button.sec{background:#1b2634;color:var(--txt);border:1px solid var(--line)}
+  button:disabled{opacity:.5;cursor:default}
+  .bar{height:6px;background:#0d131b;border-radius:4px;overflow:hidden;margin-top:10px}
+  .bar>i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+  #msg{color:var(--mut);margin-top:8px;font-size:13px;min-height:18px}
+  #msg.err{color:var(--bad)}
+  .tw{overflow:auto;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;min-width:900px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  th{background:#0f1620;color:var(--mut);font-size:12px;cursor:pointer;position:sticky;top:0;user-select:none}
+  td.ip{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-weight:700;font-size:12px}
+  .s-ok{background:#12301b;color:#56d364}
+  .s-warn{background:#3a2d0c;color:#e3b341}
+  .s-bad{background:#401614;color:#ff7b72}
+  .y{color:var(--bad);font-weight:700}
+  .n{color:var(--mut)}
+  .sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .sum div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:110px}
+  .sum b{display:block;font-size:20px}
+  .sum span{color:var(--mut);font-size:12px}
+</style>
 </head>
 <body>
+<div class="wrap">
+  <h1>IP Check · IPQualityScore</h1>
 
-    <h1>Consulta de ISP y ASN por IP</h1>
-    
-    <button id="btnConsultar" onclick="iniciarConsulta()">Iniciar Consulta</button>
-    <div id="estado" class="status">Esperando para iniciar...</div>
+  <div class="panel">
+    <div class="row">
+      <div>
+        <label for="key">API key (se guarda solo en este navegador)</label>
+        <input id="key" type="password" placeholder="Pega tu API key de IPQualityScore" autocomplete="off">
+      </div>
+      <div style="flex:0 0 auto;min-width:0">
+        <label>&nbsp;</label>
+        <button class="sec" id="showkey" type="button">Ver</button>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label for="ips">IPs (una por línea, o separadas por espacios/comas)</label>
+      <textarea id="ips" placeholder="95.147.205.54&#10;109.145.201.41"></textarea>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button id="go" type="button">Consultar</button>
+      <button class="sec" id="csv" type="button" disabled>Descargar CSV</button>
+      <button class="sec" id="clear" type="button">Limpiar</button>
+    </div>
+    <div class="bar"><i id="prog"></i></div>
+    <div id="msg"></div>
+  </div>
 
-    <!-- Tabla Principal -->
-    <table id="tablaIps">
-        <thead>
-            <tr>
-                <th>No.</th>
-                <th>Dirección IP</th>
-                <th>ISP / Organización</th>
-                <th>ASN</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Los resultados aparecerán aquí -->
-        </tbody>
+  <div class="sum" id="sum" hidden></div>
+
+  <div class="tw">
+    <table id="tbl" hidden>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"></tbody>
     </table>
+  </div>
+</div>
 
-    <hr style="max-width: 800px; margin: 40px auto; border: 1px solid #ddd;">
+<script>
+const COLS = [
+  ["ip","IP"],["fraud_score","Score"],["country_code","País"],["region","Región"],
+  ["city","Ciudad"],["ISP","ISP"],["ASN","ASN"],["connection_type","Conexión"],
+  ["mobile","Móvil"],["proxy","Proxy"],["vpn","VPN"],["active_vpn","VPN activa"],
+  ["tor","Tor"],["bot_status","Bot"],["recent_abuse","Abuso reciente"]
+];
+const BOOLS = new Set(["mobile","proxy","vpn","active_vpn","tor","bot_status","recent_abuse"]);
+const $ = id => document.getElementById(id);
+let rows = [], sortKey = null, sortDir = 1;
 
-    <!-- Tabla de Contabilidad (Resumen) -->
-    <h2>Contabilidad por Empresa (ISP)</h2>
-    <table id="tablaResumen">
-        <thead>
-            <tr>
-                <th>ISP / Empresa</th>
-                <th>Cantidad de IPs</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- El resumen de cantidades aparecerá aquí -->
-        </tbody>
-    </table>
+// ---- clave en localStorage (opcional, si el navegador lo bloquea no pasa nada)
+try { $("key").value = localStorage.getItem("ipc_key") || ""; } catch(e){}
+$("key").addEventListener("change", () => { try { localStorage.setItem("ipc_key", $("key").value.trim()); } catch(e){} });
+$("showkey").onclick = () => {
+  const k = $("key"); const show = k.type === "password";
+  k.type = show ? "text" : "password"; $("showkey").textContent = show ? "Ocultar" : "Ver";
+};
 
-    <script>
-        const token = "8c97cc52a98a48";
-        const ips = [
-            "86.172.94.228", "86.146.3.150", "82.36.48.127", "195.213.225.107",
-            "82.44.55.67", "193.237.213.133", "94.6.16.99", "90.213.168.137",
-            "90.197.158.137", "62.49.161.71", "86.159.221.110", "77.99.178.240",
-            "151.229.197.21", "90.206.226.43", "86.176.150.147", "62.49.194.35",
-            "86.160.20.72", "90.251.49.8", "84.67.98.222", "81.78.221.30",
-            "151.229.71.67", "51.6.197.79", "81.174.166.32", "",
-            "77.99.178.34", "81.111.7.96", "86.170.184.78", "109.146.76.168"
-        ];
+function parseIPs(t){
+  const seen = new Set(), out = [];
+  (t.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b|[0-9a-fA-F:]{3,39}(?=[\s,;]|$)/g) || []).forEach(x=>{
+    if(!seen.has(x)){ seen.add(x); out.push(x); }
+  });
+  return out;
+}
 
-        async function iniciarConsulta() {
-            const tbodyPrincipal = document.querySelector("#tablaIps tbody");
-            const tbodyResumen = document.querySelector("#tablaResumen tbody");
-            const estado = document.getElementById("estado");
-            const btn = document.getElementById("btnConsultar");
-            
-            tbodyPrincipal.innerHTML = ""; // Limpiar tabla principal
-            tbodyResumen.innerHTML = "";   // Limpiar tabla de resumen
-            btn.disabled = true; // Desactivar botón
+function setMsg(t, err){ $("msg").textContent = t; $("msg").className = err ? "err" : ""; }
 
-            // Objeto para llevar la contabilidad
-            let contabilidadISP = {};
-            
-            for (let i = 0; i < ips.length; i++) {
-                const ip = ips[i];
-                const tr = document.createElement("tr");
-                
-                let tdNo = `<td>${i + 1}</td>`;
-                let tdIp = `<td>${ip || "<strong>[VACÍA - Pendiente]</strong>"}</td>`;
-                let tdIsp = `<td>Cargando...</td>`;
-                let tdAsn = `<td>Cargando...</td>`;
-                
-                tr.innerHTML = tdNo + tdIp + tdIsp + tdAsn;
-                tbodyPrincipal.appendChild(tr);
+async function lookup(ip, key){
+  const url = `https://ipqualityscore.com/api/json/ip/${encodeURIComponent(key)}/${encodeURIComponent(ip)}?strictness=1&allow_public_access_points=true`;
+  try{
+    const r = await fetch(url);
+    const d = await r.json();
+    d.ip = ip;
+    return d;
+  }catch(e){
+    return { ip, success:false, message:"No se pudo conectar (posible bloqueo CORS o red): " + e.message };
+  }
+}
 
-                estado.innerText = `Consultando IP ${i + 1} de ${ips.length}...`;
+$("go").onclick = async () => {
+  const key = $("key").value.trim();
+  const ips = parseIPs($("ips").value);
+  if(!key){ setMsg("Falta la API key.", true); return; }
+  if(!ips.length){ setMsg("No encontré IPs válidas.", true); return; }
+  try { localStorage.setItem("ipc_key", key); } catch(e){}
 
-                if (ip !== "") {
-                    try {
-                        const response = await fetch(`https://ipinfo.io/${ip}/json?token=${token}`);
-                        const data = await response.json();
-                        
-                        let orgFull = data.org || "No disponible";
-                        let asn = "-";
-                        let isp = orgFull;
-                        
-                        // Separar el ASN del nombre del ISP
-                        if (orgFull.startsWith("AS")) {
-                            let partes = orgFull.split(" ");
-                            asn = partes[0];
-                            isp = partes.slice(1).join(" "); // Todo lo que sigue al ASN es el nombre
-                        }
-                        
-                        tr.cells[2].innerText = isp;
-                        tr.cells[3].innerText = asn;
+  rows = []; render();
+  $("go").disabled = true; $("csv").disabled = true;
+  let done = 0, i = 0;
+  const N = ips.length, CONC = 3;
+  setMsg(`Consultando 0/${N}…`); $("prog").style.width = "0";
 
-                        // === AQUÍ LLEVAMOS LA CONTABILIDAD ===
-                        // Si el ISP ya existe en el contador, sumamos 1, si no, lo creamos con valor 1
-                        if (contabilidadISP[isp]) {
-                            contabilidadISP[isp]++;
-                        } else {
-                            contabilidadISP[isp] = 1;
-                        }
+  async function worker(){
+    while(i < N){
+      const ip = ips[i++];
+      const d = await lookup(ip, key);
+      rows.push(d); done++;
+      $("prog").style.width = (done/N*100) + "%";
+      setMsg(`Consultando ${done}/${N}…`);
+      render();
+    }
+  }
+  await Promise.all(Array.from({length:CONC}, worker));
 
-                    } catch (error) {
-                        tr.cells[2].innerText = "Error en consulta";
-                        tr.cells[3].innerText = "-";
-                    }
-                } else {
-                    tr.cells[2].innerText = "-";
-                    tr.cells[3].innerText = "-";
-                }
-                
-                // Pequeña pausa de 300 milisegundos para no saturar la API
-                await new Promise(resolve => setTimeout(resolve, 300));
-            }
-            
-            // === AL TERMINAR, DIBUJAMOS LA TABLA DE RESUMEN ===
-            estado.innerText = "¡Consulta y Contabilidad finalizadas!";
-            
-            // Convertimos el objeto en un arreglo para poder ordenarlo de mayor a menor
-            let arregloResultados = [];
-            for (let empresa in contabilidadISP) {
-                arregloResultados.push({
-                    nombre: empresa,
-                    cantidad: contabilidadISP[empresa]
-                });
-            }
+  const fails = rows.filter(r => r.success === false);
+  if(fails.length === N){
+    setMsg("Todas fallaron: " + (fails[0].message || "error desconocido"), true);
+  } else if(fails.length){
+    setMsg(`Listo. ${N-fails.length} ok, ${fails.length} con error (aparecen al final con el mensaje).`);
+  } else {
+    setMsg(`Listo: ${N} IPs consultadas.`);
+  }
+  $("go").disabled = false; $("csv").disabled = rows.length === 0;
+};
 
-            // Ordenamos de mayor a menor cantidad
-            arregloResultados.sort((a, b) => b.cantidad - a.cantidad);
+function scoreClass(s){ return s >= 85 ? "s-bad" : s >= 75 ? "s-warn" : "s-ok"; }
 
-            // Creamos las filas en la tabla de resumen
-            for (let item of arregloResultados) {
-                const filaResumen = document.createElement("tr");
-                filaResumen.innerHTML = `<td><strong>${item.nombre}</strong></td><td>${item.cantidad}</td>`;
-                tbodyResumen.appendChild(filaResumen);
-            }
+function render(){
+  const tbl = $("tbl");
+  if(!rows.length){ tbl.hidden = true; $("sum").hidden = true; return; }
+  tbl.hidden = false;
 
-            btn.disabled = false; // Reactivar el botón por si quieres consultar de nuevo
-        }
-    </script>
+  $("head").innerHTML = COLS.map(([k,l]) =>
+    `<th data-k="${k}">${l}${sortKey===k ? (sortDir>0?" ▲":" ▼") : ""}</th>`).join("");
+  $("head").querySelectorAll("th").forEach(th => th.onclick = () => {
+    const k = th.dataset.k;
+    if(sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = 1; }
+    render();
+  });
+
+  let view = rows.slice();
+  if(sortKey){
+    view.sort((a,b)=>{
+      const x = a[sortKey], y = b[sortKey];
+      if(x === y) return 0;
+      if(x === undefined) return 1;
+      if(y === undefined) return -1;
+      return (x > y ? 1 : -1) * sortDir;
+    });
+  } else {
+    view.sort((a,b)=> (a.success===false) - (b.success===false));
+  }
+
+  $("body").innerHTML = view.map(r=>{
+    if(r.success === false){
+      return `<tr><td class="ip">${esc(r.ip)}</td><td colspan="${COLS.length-1}" class="y">${esc(r.message||"Error")}</td></tr>`;
+    }
+    return "<tr>" + COLS.map(([k])=>{
+      const v = r[k];
+      if(k === "ip") return `<td class="ip">${esc(v)}</td>`;
+      if(k === "fraud_score") return `<td><span class="pill ${scoreClass(v)}">${v}</span></td>`;
+      if(BOOLS.has(k)) return `<td class="${v ? "y":"n"}">${v ? "Sí" : "No"}</td>`;
+      return `<td>${esc(v ?? "")}</td>`;
+    }).join("") + "</tr>";
+  }).join("");
+
+  const ok = rows.filter(r=>r.success!==false);
+  const avg = ok.length ? Math.round(ok.reduce((s,r)=>s+(r.fraud_score||0),0)/ok.length) : 0;
+  const risky = ok.filter(r=>r.fraud_score>=75).length;
+  const vp = ok.filter(r=>r.proxy||r.vpn||r.tor).length;
+  $("sum").hidden = false;
+  $("sum").innerHTML =
+    `<div><b>${ok.length}</b><span>consultadas</span></div>
+     <div><b>${avg}</b><span>score promedio</span></div>
+     <div><b>${risky}</b><span>score ≥ 75</span></div>
+     <div><b>${vp}</b><span>proxy/VPN/Tor</span></div>`;
+}
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+$("csv").onclick = () => {
+  const head = COLS.map(c=>c[0]).concat(["success","message"]);
+  const q = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const lines = [head.join(",")].concat(rows.map(r => head.map(k=>q(r[k])).join(",")));
+  const blob = new Blob(["﻿" + lines.join("\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "ip_check.csv"; a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+$("clear").onclick = () => { rows = []; $("ips").value = ""; $("prog").style.width = "0"; setMsg(""); render(); $("csv").disabled = true; };
+</script>
 </body>
 </html>
